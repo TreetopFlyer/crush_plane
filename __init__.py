@@ -37,8 +37,28 @@ class CrushPlane:
                     CrushPlane.PlaneVector.normalize()
                     CrushPlane.PlanePosition = three[0]
                     CrushPlane.PlaneOffset = three[0].dot(CrushPlane.PlaneVector)
+                    
+                    
+                    CrushPlane.DrawPlane.matrix_world = Matrix.Translation(three[0])
+                    
+                    vZ = CrushPlane.PlaneVector
+                    vY = three[1]
+                    vY.normalize()
+                    vX = three[1].cross(CrushPlane.PlaneVector)
+                    
+                    CrushPlane.DrawPlane.matrix_world.col[2][0] = vZ.x
+                    CrushPlane.DrawPlane.matrix_world.col[2][1] = vZ.y
+                    CrushPlane.DrawPlane.matrix_world.col[2][2] = vZ.z
+                    
+                    CrushPlane.DrawPlane.matrix_world.col[1][0] = vY.x
+                    CrushPlane.DrawPlane.matrix_world.col[1][1] = vY.y
+                    CrushPlane.DrawPlane.matrix_world.col[1][2] = vY.z
+                    
+                    CrushPlane.DrawPlane.matrix_world.col[0][0] = -vX.x
+                    CrushPlane.DrawPlane.matrix_world.col[0][1] = -vX.y
+                    CrushPlane.DrawPlane.matrix_world.col[0][2] = -vX.z
+                    
                     return
-
         print("Not Enough Verticies selcted for plane")
 
     def SetProjection(inObject):
