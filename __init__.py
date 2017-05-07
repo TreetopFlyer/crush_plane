@@ -10,9 +10,10 @@ from mathutils import Vector
 
 class CrushPlane:
 
-    PlaneVector = Vector((0, 0.7, 0.7))
+    PlaneVector = Vector((0, 0.0, 1))
     PlaneOffset = 0
     ProjectVector = Vector((0, 0, -1))
+    CustomVector = Vector((0, 0, -1))
 
     def SetPlane(inMesh):
         three = []
@@ -25,12 +26,11 @@ class CrushPlane:
                     three[1] = three[1] - three[0]
                     three[2] = three[2] - three[0]
                     
-                    
                     CrushPlane.PlaneVector = three[1].cross(three[2])
                     CrushPlane.PlaneVector.normalize()
                     CrushPlane.PlaneOffset = three[0].dot(CrushPlane.PlaneVector)
-                    
                     return
+
         print("Not Enough Verticies selcted for plane")
 
     def SetProjection(inMesh):
@@ -40,8 +40,7 @@ class CrushPlane:
             if vert.select:
                 two.append(vert.co)
                 if(len(two) == 2):
-                    CrushPlane.ProjectVector = two[1] - two[0]
-                    print(CrushPlane.ProjectVector)
+                    CrushPlane.CustomVector = two[1] - two[0]
                     return
                 
         print("Not Enough Verticies selcted for projection")
@@ -72,15 +71,6 @@ class CrushPlane:
 
 ###########################
 
-class CrushPlaneCrush(bpy.types.Operator):
-    """Crush verticies onto a plane along a direction"""
-    bl_idname = "mesh.crush_plane_crush"
-    bl_label = "Crush Plane: Crush"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        CrushPlane.CrushVerticies(context.active_object.data)
-        return {'FINISHED'}
 
 class CrushPlaneSetPlane(bpy.types.Operator):
     """Infer the crush plane from selected geometry"""
@@ -112,34 +102,48 @@ class CrushPlaneSetProjection(bpy.types.Operator):
         CrushPlane.SetProjection(context.active_object.data)
         return {'FINISHED'}
 
-class CrushPlaneSetProjectionZ(bpy.types.Operator):
+class CrushPlaneCrushCustom(bpy.types.Operator):
+    """Crush verticies onto a plane along a direction"""
+    bl_idname = "mesh.crush_plane_crush_custom"
+    bl_label = "Crush Plane: Crush"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        CrushPlane.ProjectVector = CrushPlane.CustomVector.copy();
+        CrushPlane.CrushVerticies(context.active_object.data)
+        return {'FINISHED'}
+
+class CrushPlaneCrushZ(bpy.types.Operator):
     """Crush along local Z"""
-    bl_idname = "mesh.crush_plane_set_projection_z"
-    bl_label = "Crush Plane: Set Projection Z"
+    bl_idname = "mesh.crush_plane_crush_z"
+    bl_label = "Crush Plane: Crush Z"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((0, 0, 1))
+        CrushPlane.CrushVerticies(context.active_object.data)
         return {'FINISHED'}
     
-class CrushPlaneSetProjectionY(bpy.types.Operator):
+class CrushPlaneCrushY(bpy.types.Operator):
     """Crush along local Y"""
-    bl_idname = "mesh.crush_plane_set_projection_y"
-    bl_label = "Crush Plane: Set Projection Y"
+    bl_idname = "mesh.crush_plane_crush_y"
+    bl_label = "Crush Plane: Crush Y"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((0, 1, 0))
+        CrushPlane.CrushVerticies(context.active_object.data)
         return {'FINISHED'}
     
-class CrushPlaneSetProjectionX(bpy.types.Operator):
+class CrushPlaneCrushX(bpy.types.Operator):
     """Crush along local X"""
-    bl_idname = "mesh.crush_plane_set_projection_x"
-    bl_label = "Crush Plane: Set Projection X"
+    bl_idname = "mesh.crush_plane_crush_x"
+    bl_label = "Crush Plane: Crush X"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((1, 0, 0))
+        CrushPlane.CrushVerticies(context.active_object.data)
         return {'FINISHED'}
 
 class CrushPlaneUI(bpy.types.Panel):
@@ -158,40 +162,39 @@ class CrushPlaneUI(bpy.types.Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("mesh.crush_plane_set_plane", text="Get Plane From")
-        row.operator("mesh.crush_plane_set_plane_offset", text="Move Plane To")
-        
+        row.operator("mesh.crush_plane_set_plane", text="Get Plane")
+        row.operator("mesh.crush_plane_set_plane_offset", text="Move Plane")
+        row.operator("mesh.crush_plane_set_projection", text="Get Custom Projection")
+
         col = layout.column(align=True)
-        
-        col.operator("mesh.crush_plane_set_projection", text="Get Projection")
         row = col.row(align=True)
-        row.operator("mesh.crush_plane_set_projection_x", text="X")
-        row.operator("mesh.crush_plane_set_projection_y", text="Y")
-        row.operator("mesh.crush_plane_set_projection_z", text="Z")
-        
-        col = layout.column(align=True)
-        col.operator("mesh.crush_plane_crush", text="Crush")
+        row.operator("mesh.crush_plane_crush_x", text="X")
+        row.operator("mesh.crush_plane_crush_y", text="Y")
+        row.operator("mesh.crush_plane_crush_z", text="Z")
+        row.operator("mesh.crush_plane_crush_custom", text="Custom")
 
 
 def register():
-    bpy.utils.register_class(CrushPlaneCrush)
+    
     bpy.utils.register_class(CrushPlaneSetPlane)
     bpy.utils.register_class(CrushPlaneSetPlaneOffset)
     bpy.utils.register_class(CrushPlaneSetProjection)
-    bpy.utils.register_class(CrushPlaneSetProjectionX)
-    bpy.utils.register_class(CrushPlaneSetProjectionY)
-    bpy.utils.register_class(CrushPlaneSetProjectionZ)
+    bpy.utils.register_class(CrushPlaneCrushCustom)
+    bpy.utils.register_class(CrushPlaneCrushX)
+    bpy.utils.register_class(CrushPlaneCrushY)
+    bpy.utils.register_class(CrushPlaneCrushZ)
     bpy.utils.register_class(CrushPlaneUI)
 
 
 def unregister():
-    bpy.utils.unregister_class(CrushPlaneCrush)
+    
     bpy.utils.unregister_class(CrushPlaneSetPlane)
-    bpy.utils.unregister_class(CrushPlaneSetOffset)
+    bpy.utils.unregister_class(CrushPlaneSetPlaneOffset)
     bpy.utils.unregister_class(CrushPlaneSetProjection)
-    bpy.utils.unregister_class(CrushPlaneSetProjectionX)
-    bpy.utils.unregister_class(CrushPlaneSetProjectionY)
-    bpy.utils.unregister_class(CrushPlaneSetProjectionZ)
+    bpy.utils.unregister_class(CrushPlaneCrushCustom)
+    bpy.utils.unregister_class(CrushPlaneCrushX)
+    bpy.utils.unregister_class(CrushPlaneCrushY)
+    bpy.utils.unregister_class(CrushPlaneCrushZ)
     bpy.utils.unregister_class(CrushPlaneUI)
 
 
