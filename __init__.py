@@ -21,11 +21,13 @@ class CrushPlane:
 
     def GetNormal():
         members = CrushPlane.DrawPlane.matrix_world.col
-        normal = Vector((members[2][0], members[2][1], members[2][2], 0))
+        normal = Vector((members[2][0], members[2][1], members[2][2]))
         normal.normalize()
-        position = Vector((members[3][0], members[3][1], members[3][2]))
-        normal.w = -position.dot(normal)
         return normal
+    
+    def GetPosition():
+        members = CrushPlane.DrawPlane.matrix_world.col
+        return Vector((members[3][0], members[3][1], members[3][2]))
 
     def SetPlane(inObject):
         three = []
@@ -95,12 +97,13 @@ class CrushPlane:
         for vert in mesh.verts:
             if vert.select:
                 
-                parts = CrushPlane.GetNormal()
+                normal = CrushPlane.GetNormal()
+                offset = CrushPlane.GetPosition().dot(normal)
                 
                 worldSpace = inObject.matrix_world * vert.co
                 vOther = worldSpace + CrushPlane.ProjectVector
-                dVertex = worldSpace.dot(Vector((parts.x, parts.y, parts.z))) + parts.w
-                dOther = vOther.dot(Vector((parts.x, parts.y, parts.z))) + parts.w
+                dVertex = worldSpace.dot(normal) - offset
+                dOther = vOther.dot(normal) - offset
                 dSum = dVertex - dOther
                 dPercent = dVertex/dSum
                 worldSpace.x = worldSpace.x + dPercent*(vOther.x - worldSpace.x)
@@ -187,6 +190,17 @@ class CrushPlaneCrushX(bpy.types.Operator):
         CrushPlane.ProjectVector = Vector((1, 0, 0))
         CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
+    
+class CrushPlaneBisect(bpy.types.Operator):
+    """Bisect with crush plane"""
+    bl_idname = "mesh.crush_plane_bisect"
+    bl_label = "Crush Plane: Bisect"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bpy.ops.mesh.bisect(plane_co=CrushPlane.GetPosition(), plane_no=CrushPlane.GetNormal())
+        return {'FINISHED'}
+    
 
 ########
 
@@ -216,6 +230,9 @@ class CrushPlaneUI(bpy.types.Panel):
         row.operator("mesh.crush_plane_crush_y", text="Y")
         row.operator("mesh.crush_plane_crush_z", text="Z")
         row.operator("mesh.crush_plane_crush_custom", text="Custom")
+        
+        col = layout.column(align=True)
+        col.operator("mesh.crush_plane_bisect", text="Bisect")
 
 
 def register():
@@ -227,6 +244,7 @@ def register():
     bpy.utils.register_class(CrushPlaneCrushX)
     bpy.utils.register_class(CrushPlaneCrushY)
     bpy.utils.register_class(CrushPlaneCrushZ)
+    bpy.utils.register_class(CrushPlaneBisect)
     bpy.utils.register_class(CrushPlaneUI)
 
 
@@ -239,6 +257,7 @@ def unregister():
     bpy.utils.unregister_class(CrushPlaneCrushX)
     bpy.utils.unregister_class(CrushPlaneCrushY)
     bpy.utils.unregister_class(CrushPlaneCrushZ)
+    bpy.utils.unregister_class(CrushPlaneBisect)
     bpy.utils.unregister_class(CrushPlaneUI)
 
 
