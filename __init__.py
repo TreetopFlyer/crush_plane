@@ -7,20 +7,27 @@ import bpy
 import bmesh
 import mathutils
 from mathutils import Vector
+from mathutils import Matrix
 
 class CrushPlane:
 
     PlaneVector = Vector((0, 0.0, 1))
     PlaneOffset = 0
+    PlaneMatrix = Matrix.Translation((0, 0, 0))
     ProjectVector = Vector((0, 0, -1))
     CustomVector = Vector((0, 0, -1))
+    
+    
+    DrawPlane = bpy.data.objects.new("CrushPlane Plane", None )
+    DrawPlane.empty_draw_type = 'IMAGE'
+    bpy.context.scene.objects.link(DrawPlane)
 
-    def SetPlane(inMesh):
+    def SetPlane(inObject):
         three = []
-        mesh = bmesh.from_edit_mesh(inMesh)
+        mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                three.append(vert.co)
+                three.append(inObject.matrix_world * vert.co)
                 if(len(three) == 3):
                     
                     three[1] = three[1] - three[0]
@@ -28,46 +35,52 @@ class CrushPlane:
                     
                     CrushPlane.PlaneVector = three[1].cross(three[2])
                     CrushPlane.PlaneVector.normalize()
+                    CrushPlane.PlanePosition = three[0]
                     CrushPlane.PlaneOffset = three[0].dot(CrushPlane.PlaneVector)
                     return
 
         print("Not Enough Verticies selcted for plane")
 
-    def SetProjection(inMesh):
+    def SetProjection(inObject):
         two = []
-        mesh = bmesh.from_edit_mesh(inMesh)
+        mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                two.append(vert.co)
+                two.append(inObject.matrix_world * vert.co)
                 if(len(two) == 2):
                     CrushPlane.CustomVector = two[1] - two[0]
                     return
                 
         print("Not Enough Verticies selcted for projection")
         
-    def SetPlaneOffset(inMesh):
-        mesh = bmesh.from_edit_mesh(inMesh)
+    def SetPlaneOffset(inObject):
+        mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                CrushPlane.PlaneOffset = vert.co.dot(CrushPlane.PlaneVector)
+                one = inObject.matrix_world * vert.co
+                CrushPlane.PlaneOffset = one.dot(CrushPlane.PlaneVector)
                 return
-    
-    def CrushVertex(inVertex):
-        vOther = inVertex.co + CrushPlane.ProjectVector
-        dVertex = inVertex.co.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
-        dOther = vOther.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
-        dSum = dVertex - dOther
-        dPercent = dVertex/dSum
-        inVertex.co.x = inVertex.co.x + dPercent*(vOther.x - inVertex.co.x)
-        inVertex.co.y = inVertex.co.y + dPercent*(vOther.y - inVertex.co.y)
-        inVertex.co.z = inVertex.co.z + dPercent*(vOther.z - inVertex.co.z)
 
-    def CrushVerticies(inMesh):
-        mesh = bmesh.from_edit_mesh(inMesh)
+    #####
+
+    def CrushVerticies(inObject): 
+        inverse = inObject.matrix_world.inverted()
+        mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                CrushPlane.CrushVertex(vert)
-        bmesh.update_edit_mesh(inMesh)
+                worldSpace = inObject.matrix_world * vert.co
+                vOther = worldSpace + CrushPlane.ProjectVector
+                dVertex = worldSpace.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
+                dOther = vOther.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
+                dSum = dVertex - dOther
+                dPercent = dVertex/dSum
+                worldSpace.x = worldSpace.x + dPercent*(vOther.x - worldSpace.x)
+                worldSpace.y = worldSpace.y + dPercent*(vOther.y - worldSpace.y)
+                worldSpace.z = worldSpace.z + dPercent*(vOther.z - worldSpace.z)
+                
+                vert.co = inverse * worldSpace
+                
+        bmesh.update_edit_mesh(inObject.data)
 
 ###########################
 
@@ -79,7 +92,7 @@ class CrushPlaneSetPlane(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.SetPlane(context.active_object.data)
+        CrushPlane.SetPlane(context.active_object)
         return {'FINISHED'}
 
 class CrushPlaneSetPlaneOffset(bpy.types.Operator):
@@ -89,7 +102,7 @@ class CrushPlaneSetPlaneOffset(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.SetPlaneOffset(context.active_object.data)
+        CrushPlane.SetPlaneOffset(context.active_object)
         return {'FINISHED'}
 
 class CrushPlaneSetProjection(bpy.types.Operator):
@@ -99,7 +112,7 @@ class CrushPlaneSetProjection(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.SetProjection(context.active_object.data)
+        CrushPlane.SetProjection(context.active_object)
         return {'FINISHED'}
 
 class CrushPlaneCrushCustom(bpy.types.Operator):
@@ -110,7 +123,7 @@ class CrushPlaneCrushCustom(bpy.types.Operator):
 
     def execute(self, context):
         CrushPlane.ProjectVector = CrushPlane.CustomVector.copy();
-        CrushPlane.CrushVerticies(context.active_object.data)
+        CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
 
 class CrushPlaneCrushZ(bpy.types.Operator):
@@ -121,7 +134,7 @@ class CrushPlaneCrushZ(bpy.types.Operator):
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((0, 0, 1))
-        CrushPlane.CrushVerticies(context.active_object.data)
+        CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
     
 class CrushPlaneCrushY(bpy.types.Operator):
@@ -132,7 +145,7 @@ class CrushPlaneCrushY(bpy.types.Operator):
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((0, 1, 0))
-        CrushPlane.CrushVerticies(context.active_object.data)
+        CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
     
 class CrushPlaneCrushX(bpy.types.Operator):
@@ -143,8 +156,10 @@ class CrushPlaneCrushX(bpy.types.Operator):
 
     def execute(self, context):
         CrushPlane.ProjectVector = Vector((1, 0, 0))
-        CrushPlane.CrushVerticies(context.active_object.data)
+        CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
+
+########
 
 class CrushPlaneUI(bpy.types.Panel):
 
