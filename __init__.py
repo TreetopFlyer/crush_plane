@@ -11,16 +11,21 @@ from mathutils import Matrix
 
 class CrushPlane:
 
-    PlaneVector = Vector((0, 0.0, 1))
-    PlaneOffset = 0
     PlaneMatrix = Matrix.Translation((0, 0, 0))
     ProjectVector = Vector((0, 0, -1))
     CustomVector = Vector((0, 0, -1))
     
-    
     DrawPlane = bpy.data.objects.new("CrushPlane Plane", None )
     DrawPlane.empty_draw_type = 'IMAGE'
     bpy.context.scene.objects.link(DrawPlane)
+
+    def GetNormal():
+        members = CrushPlane.DrawPlane.matrix_world.col
+        normal = Vector((members[2][0], members[2][1], members[2][2], 0))
+        normal.normalize()
+        position = Vector((members[3][0], members[3][1], members[3][2]))
+        normal.w = -position.dot(normal)
+        return normal
 
     def SetPlane(inObject):
         three = []
@@ -35,10 +40,6 @@ class CrushPlane:
                     
                     CrushPlane.PlaneVector = three[1].cross(three[2])
                     CrushPlane.PlaneVector.normalize()
-                    CrushPlane.PlanePosition = three[0]
-                    CrushPlane.PlaneOffset = three[0].dot(CrushPlane.PlaneVector)
-                    
-                    
                     CrushPlane.DrawPlane.matrix_world = Matrix.Translation(three[0])
                     
                     vZ = CrushPlane.PlaneVector
@@ -78,6 +79,11 @@ class CrushPlane:
         for vert in mesh.verts:
             if vert.select:
                 one = inObject.matrix_world * vert.co
+                
+                CrushPlane.DrawPlane.matrix_world.col[3][0] = one.x
+                CrushPlane.DrawPlane.matrix_world.col[3][1] = one.y
+                CrushPlane.DrawPlane.matrix_world.col[3][2] = one.z
+                
                 CrushPlane.PlaneOffset = one.dot(CrushPlane.PlaneVector)
                 return
 
@@ -88,10 +94,13 @@ class CrushPlane:
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
+                
+                parts = CrushPlane.GetNormal()
+                
                 worldSpace = inObject.matrix_world * vert.co
                 vOther = worldSpace + CrushPlane.ProjectVector
-                dVertex = worldSpace.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
-                dOther = vOther.dot(CrushPlane.PlaneVector) - CrushPlane.PlaneOffset
+                dVertex = worldSpace.dot(Vector((parts.x, parts.y, parts.z))) + parts.w
+                dOther = vOther.dot(Vector((parts.x, parts.y, parts.z))) + parts.w
                 dSum = dVertex - dOther
                 dPercent = dVertex/dSum
                 worldSpace.x = worldSpace.x + dPercent*(vOther.x - worldSpace.x)
