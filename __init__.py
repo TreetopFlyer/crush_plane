@@ -1,7 +1,12 @@
 bl_info = {
     "name": "Crush Plane",
-    "category": "Object",
-}
+    "author": "Seth Trowbidge",
+    "version": (1, 0, 0),
+    "blender": (2, 7, 8),
+    "location": "Edit Mesh > Tools > Crush Plane",
+    "description": ("Work with planes in edit mesh mode"),
+    "warning": "",  # used for warning icon and text in addons panel
+    "category": "Mesh"}
 
 import bpy
 import bmesh
@@ -11,7 +16,6 @@ from mathutils import Matrix
 
 class CrushPlane:
 
-    PlaneMatrix = Matrix.Translation((0, 0, 0))
     ProjectVector = Vector((0, 0, -1))
     CustomVector = Vector((0, 0, -1))
     
@@ -30,6 +34,8 @@ class CrushPlane:
         return Vector((members[3][0], members[3][1], members[3][2]))
 
     def SetPlane(inObject):
+        print("Draw plane check:")
+        print(CrushPlane.GetNormal())
         three = []
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
