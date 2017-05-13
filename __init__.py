@@ -18,10 +18,22 @@ class CrushPlane:
 
     ProjectVector = Vector((0, 0, -1))
     CustomVector = Vector((0, 0, -1))
+
+    DrawPlaneName = "CrushPlane Plane"
+    DrawPlane = False
+
+    def SetupPlane():
+        CrushPlane.DrawPlane = bpy.data.objects.new(CrushPlane.DrawPlaneName, None )
+        CrushPlane.DrawPlane.empty_draw_type = 'IMAGE'
+        CrushPlane.DrawPlane.empty_image_offset = [-0.5, -0.5]
+        CrushPlane.DrawPlane.empty_draw_size = 3
+        
+    def ShowPlane():
+        bpy.context.scene.objects.link(CrushPlane.DrawPlane)
     
-    DrawPlane = bpy.data.objects.new("CrushPlane Plane", None )
-    DrawPlane.empty_draw_type = 'IMAGE'
-    bpy.context.scene.objects.link(DrawPlane)
+    def HidePlane():
+        bpy.context.scene.objects.unlink(CrushPlane.DrawPlane)
+
 
     def GetNormal():
         members = CrushPlane.DrawPlane.matrix_world.col
@@ -34,8 +46,6 @@ class CrushPlane:
         return Vector((members[3][0], members[3][1], members[3][2]))
 
     def SetPlane(inObject):
-        print("Draw plane check:")
-        print(CrushPlane.GetNormal())
         three = []
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
@@ -123,6 +133,8 @@ class CrushPlane:
 ###########################
 
 
+
+
 class CrushPlaneSetPlane(bpy.types.Operator):
     """Infer the crush plane from selected geometry"""
     bl_idname = "mesh.crush_plane_set_plane"
@@ -208,6 +220,36 @@ class CrushPlaneBisect(bpy.types.Operator):
         return {'FINISHED'}
     
 
+class CrushPlaneSetupPlane(bpy.types.Operator):
+    """Generate cut plane object"""
+    bl_idname = "mesh.crush_plane_setup_plane"
+    bl_label = "Crush Plane: Setup Plane"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        CrushPlane.SetupPlane()
+        return {'FINISHED'}
+
+class CrushPlaneShowPlane(bpy.types.Operator):
+    """Add cut plane to scene"""
+    bl_idname = "mesh.crush_plane_show_plane"
+    bl_label = "Crush Plane: Show Plane"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        CrushPlane.ShowPlane()
+        return {'FINISHED'}
+    
+class CrushPlaneHidePlane(bpy.types.Operator):
+    """Remove cut plane from scene"""
+    bl_idname = "mesh.crush_plane_hide_plane"
+    bl_label = "Crush Plane: Hide Plane"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        CrushPlane.HidePlane()
+        return {'FINISHED'}
+    
 ########
 
 class CrushPlaneUI(bpy.types.Panel):
@@ -224,25 +266,39 @@ class CrushPlaneUI(bpy.types.Panel):
         layout = self.layout
         obj = context.object
 
-        col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator("mesh.crush_plane_set_plane", text="Get Plane")
-        row.operator("mesh.crush_plane_set_plane_offset", text="Move Plane")
-        row.operator("mesh.crush_plane_set_projection", text="Get Custom Projection")
+        if(CrushPlane.DrawPlaneName not in bpy.data.objects):
+            col = layout.column(align=True)
+            col.operator("mesh.crush_plane_setup_plane", text="Setup")
+            
+        else:
+            col = layout.column(align=True)
+            if(CrushPlane.DrawPlaneName not in bpy.context.scene.objects):
+                col.operator("mesh.crush_plane_show_plane", text="Show Plane")
+            else:
+                col.operator("mesh.crush_plane_hide_plane", text="Hide Plane")
+            
+            col = layout.column(align=True)
+            row = col.row(align=True)
+            row.operator("mesh.crush_plane_set_plane", text="Get Plane")
+            row.operator("mesh.crush_plane_set_plane_offset", text="Move Plane")
+            row.operator("mesh.crush_plane_set_projection", text="Get Custom Projection")
 
-        col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator("mesh.crush_plane_crush_x", text="X")
-        row.operator("mesh.crush_plane_crush_y", text="Y")
-        row.operator("mesh.crush_plane_crush_z", text="Z")
-        row.operator("mesh.crush_plane_crush_custom", text="Custom")
-        
-        col = layout.column(align=True)
-        col.operator("mesh.crush_plane_bisect", text="Bisect")
+            col = layout.column(align=True)
+            row = col.row(align=True)
+            row.operator("mesh.crush_plane_crush_x", text="X")
+            row.operator("mesh.crush_plane_crush_y", text="Y")
+            row.operator("mesh.crush_plane_crush_z", text="Z")
+            row.operator("mesh.crush_plane_crush_custom", text="Custom")
+            
+            col = layout.column(align=True)
+            col.operator("mesh.crush_plane_bisect", text="Bisect")
 
 
 def register():
-    
+
+    bpy.utils.register_class(CrushPlaneSetupPlane)
+    bpy.utils.register_class(CrushPlaneShowPlane)
+    bpy.utils.register_class(CrushPlaneHidePlane)
     bpy.utils.register_class(CrushPlaneSetPlane)
     bpy.utils.register_class(CrushPlaneSetPlaneOffset)
     bpy.utils.register_class(CrushPlaneSetProjection)
@@ -256,6 +312,9 @@ def register():
 
 def unregister():
     
+    bpy.utils.unregister_class(CrushPlaneSetupPlane)
+    bpy.utils.unregister_class(CrushPlaneShowPlane)
+    bpy.utils.unregister_class(CrushPlaneHidePlane)
     bpy.utils.unregister_class(CrushPlaneSetPlane)
     bpy.utils.unregister_class(CrushPlaneSetPlaneOffset)
     bpy.utils.unregister_class(CrushPlaneSetProjection)
@@ -269,4 +328,4 @@ def unregister():
 
 
 if __name__ == "__main__":
-    register()
+    register()  
