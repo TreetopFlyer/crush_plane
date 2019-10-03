@@ -33,10 +33,10 @@ class CrushPlane:
         CrushPlane.DrawPlane.empty_display_size = 3
         
     def ShowPlane():
-        bpy.context.scene.objects.link(CrushPlane.DrawPlane)
+        bpy.context.scene.collection.objects.link(CrushPlane.DrawPlane)
     
     def HidePlane():
-        bpy.context.scene.objects.unlink(CrushPlane.DrawPlane)
+        bpy.context.scene.collection.objectsunlink(CrushPlane.DrawPlane)
 
 
     def GetNormal():
