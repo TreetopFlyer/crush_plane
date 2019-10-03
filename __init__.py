@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Crush Plane",
     "author": "Seth Trowbidge",
-    "version": (1, 0, 0),
-    "blender": (2, 7, 8),
+    "version": (2, 0, 0),
+    "blender": (2, 8, 0),
     "location": "Edit Mesh > Tools > Crush Plane",
     "description": ("Work with planes in edit mesh mode"),
     "warning": "",  # used for warning icon and text in addons panel
@@ -16,17 +16,21 @@ from mathutils import Matrix
 
 class CrushPlane:
 
-    ProjectVector = Vector((0, 0, -1))
-    CustomVector = Vector((0, 0, -1))
+    VectorProject = Vector((0, 0, -1))
+    VectorCustom = Vector((0, 0, -1))
+
+    PlaneOffset = 0
+    PlaneVector = Vector((0, 0, 1))
 
     DrawPlaneName = "CrushPlane Plane"
     DrawPlane = False
 
     def SetupPlane():
         CrushPlane.DrawPlane = bpy.data.objects.new(CrushPlane.DrawPlaneName, None )
-        CrushPlane.DrawPlane.empty_draw_type = 'IMAGE'
+        bpy.context.scene.collection.objects.link( CrushPlane.DrawPlane )
+        CrushPlane.DrawPlane.empty_display_type = 'IMAGE'
         CrushPlane.DrawPlane.empty_image_offset = [-0.5, -0.5]
-        CrushPlane.DrawPlane.empty_draw_size = 3
+        CrushPlane.DrawPlane.empty_display_size = 3
         
     def ShowPlane():
         bpy.context.scene.objects.link(CrushPlane.DrawPlane)
@@ -50,7 +54,7 @@ class CrushPlane:
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                three.append(inObject.matrix_world * vert.co)
+                three.append(inObject.matrix_world @ vert.co)
                 if(len(three) == 3):
                     
                     three[1] = three[1] - three[0]
@@ -85,9 +89,9 @@ class CrushPlane:
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                two.append(inObject.matrix_world * vert.co)
+                two.append(inObject.matrix_world @ vert.co)
                 if(len(two) == 2):
-                    CrushPlane.CustomVector = two[1] - two[0]
+                    CrushPlane.VectorCustom = two[1] - two[0]
                     return
                 
         print("Not Enough Verticies selcted for projection")
@@ -96,7 +100,7 @@ class CrushPlane:
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
-                one = inObject.matrix_world * vert.co
+                one = inObject.matrix_world @ vert.co
                 
                 CrushPlane.DrawPlane.matrix_world.col[3][0] = one.x
                 CrushPlane.DrawPlane.matrix_world.col[3][1] = one.y
@@ -116,8 +120,8 @@ class CrushPlane:
                 normal = CrushPlane.GetNormal()
                 offset = CrushPlane.GetPosition().dot(normal)
                 
-                worldSpace = inObject.matrix_world * vert.co
-                vOther = worldSpace + CrushPlane.ProjectVector
+                worldSpace = inObject.matrix_world @ vert.co
+                vOther = worldSpace + CrushPlane.VectorProject
                 dVertex = worldSpace.dot(normal) - offset
                 dOther = vOther.dot(normal) - offset
                 dSum = dVertex - dOther
@@ -126,7 +130,7 @@ class CrushPlane:
                 worldSpace.y = worldSpace.y + dPercent*(vOther.y - worldSpace.y)
                 worldSpace.z = worldSpace.z + dPercent*(vOther.z - worldSpace.z)
                 
-                vert.co = inverse * worldSpace
+                vert.co = inverse @ worldSpace
                 
         bmesh.update_edit_mesh(inObject.data)
 
@@ -172,7 +176,7 @@ class CrushPlaneCrushCustom(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.ProjectVector = CrushPlane.CustomVector.copy();
+        CrushPlane.VectorProject = CrushPlane.VectorCustom.copy();
         CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
 
@@ -183,7 +187,7 @@ class CrushPlaneCrushZ(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.ProjectVector = Vector((0, 0, 1))
+        CrushPlane.VectorProject = Vector((0, 0, 1))
         CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
     
@@ -194,7 +198,7 @@ class CrushPlaneCrushY(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.ProjectVector = Vector((0, 1, 0))
+        CrushPlane.VectorProject = Vector((0, 1, 0))
         CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
     
@@ -205,7 +209,7 @@ class CrushPlaneCrushX(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CrushPlane.ProjectVector = Vector((1, 0, 0))
+        CrushPlane.VectorProject = Vector((1, 0, 0))
         CrushPlane.CrushVerticies(context.active_object)
         return {'FINISHED'}
     
@@ -255,7 +259,7 @@ class CrushPlaneHidePlane(bpy.types.Operator):
 class CrushPlaneUI(bpy.types.Panel):
 
     bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
+    bl_region_type = "UI"
     bl_label = "Crush Plane"
     bl_idname = "VIEW3D_PT_crush_plane"
     bl_context = "mesh_edit"
