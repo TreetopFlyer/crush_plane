@@ -109,24 +109,18 @@ class CrushPlane:
 
     def CrushVerticies(inObject): 
         inverse = inObject.matrix_world.inverted()
+        normal = CrushPlane.GetNormal()
+        offset = CrushPlane.GetPosition().dot(normal)
+
         mesh = bmesh.from_edit_mesh(inObject.data)
         for vert in mesh.verts:
             if vert.select:
                 
-                normal = CrushPlane.GetNormal()
-                offset = CrushPlane.GetPosition().dot(normal)
-                
-                worldSpace = inObject.matrix_world * vert.co
-                vOther = worldSpace + CrushPlane.ProjectVector
-                dVertex = worldSpace.dot(normal) - offset
-                dOther = vOther.dot(normal) - offset
-                dSum = dVertex - dOther
-                dPercent = dVertex/dSum
-                worldSpace.x = worldSpace.x + dPercent*(vOther.x - worldSpace.x)
-                worldSpace.y = worldSpace.y + dPercent*(vOther.y - worldSpace.y)
-                worldSpace.z = worldSpace.z + dPercent*(vOther.z - worldSpace.z)
-                
-                vert.co = inverse * worldSpace
+                vWorld = inObject.matrix_world * vert.co # get the world coords of the vert
+                pWorld = vWorld.dot(normal) - offset # project it onto the plane normal (with offset)
+                dWorld = vWorld - normal*pWorld # move the vert along the normal by the projection amount
+
+                vert.co = inverse * dWorld # commit the update in local coords
                 
         bmesh.update_edit_mesh(inObject.data)
 
